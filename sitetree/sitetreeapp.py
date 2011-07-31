@@ -5,6 +5,7 @@ from django.conf import settings
 from django import template
 from django.db.models import signals
 from django.utils.http import urlquote
+from django.db.models.query import QuerySet
 from django.template.defaulttags import url as url_tag
 
 from models import Tree, TreeItem
@@ -181,8 +182,10 @@ class SiteTree(object):
         # Resolve only if item's URL is marked as pattern.
         if sitetree_item.urlaspattern:
             resolved_var = self.resolve_var(sitetree_item.url, context)
-            if isinstance(resolved_var, list):
-                raise SiteTreeError('Named URL for "%s" sitetree item clashes with template variable name. Please change either name.' % sitetree_item.title)
+            if isinstance(resolved_var, (list, QuerySet)):
+                # needs for correct work with Django 1.3 generic CBV ListView and the same
+                # if template context contains variable with the same name as URL pattern
+                resolved_var = sitetree_item.url
             view_path = resolved_var.split(' ')
             # We should try to resolve URL parameters from site tree item.
             view_arguments = []
