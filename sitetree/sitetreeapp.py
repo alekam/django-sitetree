@@ -129,6 +129,15 @@ class SiteTree(object):
         request path against URL of given tree item.
 
         """
+        def mark_branch(self, parent, init=0):
+            for branch_item in self.cache_urls[tree_alias]:
+                if init == 1:
+                    self.cache_urls[tree_alias][branch_item][1].is_current_branch = False
+                if self.cache_urls[tree_alias][branch_item][1].id == parent:
+                    self.cache_urls[tree_alias][branch_item][1].is_current_branch = True
+                    if self.cache_urls[tree_alias][branch_item][1].parent_id is not None:
+                        mark_branch(self, self.cache_urls[tree_alias][branch_item][1].parent_id)
+                        break
         current_item = None
 
         if tree_alias in self.cache_current_item:
@@ -144,6 +153,7 @@ class SiteTree(object):
                         self.cache_urls[tree_alias][url_item][1].is_current = False
                         if self.cache_urls[tree_alias][url_item][0] == current_url:
                             current_item = self.cache_urls[tree_alias][url_item][1]
+                            mark_branch(self, current_item.parent_id, 1)
 
             self.cache_current_item[tree_alias] = current_item
 
@@ -262,6 +272,7 @@ class SiteTree(object):
         parent_isnull = False
         parent_ids = []
         parent_aliases = []
+        is_current_branch = False
 
         current_item = self.get_tree_current_item(tree_alias)
 
@@ -276,8 +287,11 @@ class SiteTree(object):
                 branch_id = self.get_ancestor_item(tree_alias, current_item).id
                 parent_ids.append(branch_id)
             elif branch_id == 'this-siblings' and current_item is not None:
-                branch_id = current_item.parent.id
-                parent_ids.append(branch_id)
+                if current_item.parent is not None:
+                    branch_id = current_item.parent.id
+                    parent_ids.append(branch_id)
+            elif branch_id == 'this-root-submenu' and current_item is not None:
+                is_current_branch = True
             elif branch_id.isdigit():
                 parent_ids.append(branch_id)
             elif branch_id.isalnum():
@@ -289,6 +303,8 @@ class SiteTree(object):
                 if self.check_access(item, context):
                     if item.parent is None:
                         if parent_isnull:
+                            menu_items.append(item)
+                        if is_current_branch and hasattr(item, 'is_current_branch') and (item.is_current_branch or item.is_current):
                             menu_items.append(item)
                     else:
                         if item.parent.id in parent_ids or item.parent.alias in parent_aliases:
